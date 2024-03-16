@@ -1,0 +1,91 @@
+﻿@page "/"
+@using AuthenticationApiWIthClientDemo.Client.Auth
+@using AuthenticationApiWIthClientDemo.Domain.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http.Headers
+@rendermode InteractiveServer
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+
+
+
+<button class="btn btn-primary" @onclick="Register">Register</button>
+<button class="btn btn-primary" @onclick="Login">Login</button>
+<button class="btn btn-primary" @onclick="Test">Test</button>
+
+@if (SignedIn)
+{
+	<p>Logged in as: @UserName</p>
+}
+else
+{
+	<p>Not logged in</p>
+}
+
+<p>@Content</p>
+
+@code
+{
+	public string Content { get; set; } = string.Empty;
+	public bool SignedIn { get; set; }
+	public string UserName { get; set; } = string.Empty;
+	protected override async Task OnInitializedAsync()
+	{
+		var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		SignedIn = state.User.Identity.IsAuthenticated;
+		if (SignedIn)
+		{
+			UserName = state.User.Identity.Name;
+		}
+	}
+	private async Task Register()
+	{
+		await AuthService.Register(new UserRegisterDto() { Email = "a@a.a", Password = "Hej!1234" });
+	}
+
+	private async Task Login()
+	{
+		await AuthService.Login(new UserLoginDto() { Email = "a@a.a", Password = "Hej!1234" });
+		var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		SignedIn = state.User.Identity.IsAuthenticated;
+		if (SignedIn)
+		{
+			UserName = state.User.Identity.Name;
+		}
+	}
+
+	private async Task Test()
+	{
+		var client = HttpClientFactory.CreateClient("AuthenticationApi");
+		var user = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		
+		if (user.User.Identity.IsAuthenticated)
+		{
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.User.Claims.FirstOrDefault(c => c.Type == "token")!.Value);
+			var response = await client.GetAsync("secure");
+			if (response.IsSuccessStatusCode)
+			{
+				var content = await response.Content.ReadAsStringAsync();
+				Content = content;
+			}
+			else
+			{
+				Content = "Error";
+			}
+		}
+		else
+		{
+			Content = "Error";
+		}
+	}
+}
+
+
